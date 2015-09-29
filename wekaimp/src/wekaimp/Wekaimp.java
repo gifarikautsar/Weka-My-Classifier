@@ -36,10 +36,11 @@ public class Wekaimp {
     public void loadFile(String data_address){
         try {
             data = ConverterUtils.DataSource.read(data_address);
-            System.out.println("================================");
-            System.out.println("============Isi File============");
-            System.out.println("================================");
-            System.out.println(data.toString() + "\n");            
+//            System.out.println("================================");
+//            System.out.println("============Isi File============");
+//            System.out.println("================================");
+//            System.out.println(data.toString() + "\n");          
+            System.out.println("File berhasil di-load");
         } catch (Exception ex) {
             System.out.println("File tidak berhasil di-load");
         }     
@@ -48,7 +49,7 @@ public class Wekaimp {
     public void resample(){
         Random R = new Random();
         data.resample(R);
-        System.out.println(data.toString() + "\n");   
+        //System.out.println(data.toString() + "\n");   
     }
     
     public void removeAttribute(int[] idx){
@@ -57,7 +58,7 @@ public class Wekaimp {
             remove.setAttributeIndicesArray(idx);
             remove.setInputFormat(data);
             data = Filter.useFilter(data, remove);
-            System.out.println(data.toString() + "\n");
+            //System.out.println(data.toString() + "\n");
         } catch (Exception ex){
             System.out.println("Remove attribute gagal");
         }       
@@ -86,7 +87,35 @@ public class Wekaimp {
             model = tree;
             System.out.println(model.toString());
         } catch (Exception ex) {
-            System.out.println("Tidak bisa berhasil membuat model NaiveBayes");
+            System.out.println("Tidak bisa berhasil membuat model id3");
+        }
+        return model;
+    }
+    
+    public Classifier myID3Classifier(){
+        Classifier model = null;
+        try {
+            data.setClassIndex(data.numAttributes()-1);
+            MyID3 tree = new MyID3();
+            tree.buildClassifier(data);
+            model = tree;
+            System.out.println(model.toString());
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
+        return model;
+    }
+    
+    public Classifier myC45Classifier(){
+        Classifier model = null;
+        try {
+            data.setClassIndex(data.numAttributes()-1);
+            MyC45 tree = new MyC45();
+            tree.buildClassifier(data);
+            model = tree;
+            System.out.println(model.toString());
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
         }
         return model;
     }
@@ -172,11 +201,30 @@ public class Wekaimp {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        String file = "data/weather.nominal.arff";
-        String testfile = "data/weather.nominal.test.arff";
+        String file = "";
+        String testfile = "";
         Wekaimp w = new Wekaimp();
         Scanner scan = new Scanner(System.in);
         Classifier model = null;
+        
+        
+        System.out.println("Data yang akan digunakan:");
+        System.out.println("1. Weather Nominal");
+        System.out.println("2. Weather Numeric");
+        System.out.println("3. Iris");
+        int pil = scan.nextInt();
+        if(pil == 1){
+            file = "data/weather.nominal.arff";
+            testfile = "data/weather.nominal.test.arff";
+        }
+        else if(pil == 2){
+            file = "data/weather.numeric.arff";
+            testfile = "data/weather.numeric.test.arff";
+        }
+        else{
+            file = "data/iris.arff";
+            testfile = "data/iris.test.arff";
+        }
         
         //loadfile
         w.loadFile(file); 
@@ -196,15 +244,24 @@ public class Wekaimp {
         System.out.println("Classifier yang akan digunakan:");
         System.out.println("1. Naive Bayes");
         System.out.println("2. Id3");
-        int pil = scan.nextInt();
+        System.out.println("3. myID3");
+        System.out.println("4. myC45");
+        pil = scan.nextInt();
         if(pil == 1){
             model = w.naiveBayesClassifier();
         }
-        else{
+        else if(pil == 2){
             model = w.id3Classifier();
         }
+        else if(pil == 3){
+            model = w.myID3Classifier();
+        }
+        else{
+            model = w.myC45Classifier();
+        }
+        System.out.println(model.toString());
         w.crossValidation(model);
-        w.percentageSplit(model, 30);
+        w.percentageSplit(model, 66);
         //saveModel
         System.out.println("Ingin menyimpan model? (Y/N)");
         String savemodel = scan.next();
