@@ -36,10 +36,10 @@ public class Wekaimp {
     public void loadFile(String data_address){
         try {
             data = ConverterUtils.DataSource.read(data_address);
-//            System.out.println("================================");
-//            System.out.println("============Isi File============");
-//            System.out.println("================================");
-//            System.out.println(data.toString() + "\n");          
+            System.out.println("================================");
+            System.out.println("============Isi File============");
+            System.out.println("================================");
+            System.out.println(data.toString() + "\n");          
             System.out.println("File berhasil di-load");
         } catch (Exception ex) {
             System.out.println("File tidak berhasil di-load");
@@ -49,7 +49,10 @@ public class Wekaimp {
     public void resample(){
         Random R = new Random();
         data.resample(R);
-        //System.out.println(data.toString() + "\n");   
+        System.out.println("================================");
+        System.out.println("=========Hasil Resample=========");
+        System.out.println("================================");
+        System.out.println(data.toString() + "\n");   
     }
     
     public void removeAttribute(int[] idx){
@@ -58,7 +61,7 @@ public class Wekaimp {
             remove.setAttributeIndicesArray(idx);
             remove.setInputFormat(data);
             data = Filter.useFilter(data, remove);
-            //System.out.println(data.toString() + "\n");
+            System.out.println(data.toString() + "\n");
         } catch (Exception ex){
             System.out.println("Remove attribute gagal");
         }       
@@ -139,8 +142,16 @@ public class Wekaimp {
         try {
             int trainSize = (int) Math.round(data.numInstances() * percent/100);
             int testSize = data.numInstances() - trainSize;
-            Instances train = new Instances(data, 0, trainSize);
-            Instances test = new Instances(data, trainSize, testSize);
+            Instances train = new Instances(data, trainSize);
+            Instances test = new Instances(data, testSize);;
+            
+            for(int i=0; i<trainSize; i++){
+                train.add(data.instance(i));
+            }
+            for(int i=trainSize; i<data.numInstances(); i++){
+                test.add(data.instance(i));
+            }
+            
             Evaluation eval = new Evaluation(train);
             eval.evaluateModel(model, test);
             System.out.println("================================");
