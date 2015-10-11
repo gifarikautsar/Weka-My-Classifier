@@ -36,7 +36,6 @@ public class MyC45 extends Classifier
     private double classValue;
     private double[] distribution;
     private Attribute classAttribute;
-    private boolean isPrune;
     
     private Instances m_data;
     private float confLevel = 0.25f;
@@ -309,42 +308,41 @@ public class MyC45 extends Classifier
     
     public static double addErrs(double N, double e, float CF){
 
-    // Check for extreme cases at the low end because the
-    // normal approximation won't work
-    if (e < 1) {
+        // Check for extreme cases at the low end because the
+        // normal approximation won't work
+        if (e < 1) {
 
-      // Base case (i.e. e == 0) from documenta Geigy Scientific
-      // Tables, 6th edition, page 185
-      double base = N * (1 - Math.pow(CF, 1 / N)); 
-      if (e == 0) {
-	return base; 
-      }
-    
-      // Use linear interpolation between 0 and 1 like C4.5 does
-      return base + e * (addErrs(N, 1, CF) - base);
+            // Base case (i.e. e == 0) from documenta Geigy Scientific
+            // Tables, 6th edition, page 185
+            double base = N * (1 - Math.pow(CF, 1 / N)); 
+            if (e == 0) {
+                return base; 
+          }
+
+            // Use linear interpolation between 0 and 1 like C4.5 does
+            return base + e * (addErrs(N, 1, CF) - base);
+        }
+
+        // Use linear interpolation at the high end (i.e. between N - 0.5
+        // and N) because of the continuity correction
+        if (e + 0.5 >= N) {
+
+            // Make sure that we never return anything smaller than zero
+            return Math.max(N - e, 0);
+        }
+
+        // Get z-score corresponding to CF
+        double z = Statistics.normalInverse(1 - CF);
+
+        // Compute upper limit of confidence interval
+        double  f = (e + 0.5) / N;
+        double r = (f + (z * z) / (2 * N) +
+                    z * Math.sqrt((f / N) - 
+                                  (f * f / N) + 
+                                  (z * z / (4 * N * N)))) /(1 + (z * z) / N);
+
+        return (r * N) - e;
     }
-    
-    // Use linear interpolation at the high end (i.e. between N - 0.5
-    // and N) because of the continuity correction
-    if (e + 0.5 >= N) {
-
-      // Make sure that we never return anything smaller than zero
-      return Math.max(N - e, 0);
-    }
-
-    // Get z-score corresponding to CF
-    double z = Statistics.normalInverse(1 - CF);
-
-    // Compute upper limit of confidence interval
-    double  f = (e + 0.5) / N;
-    double r = (f + (z * z) / (2 * N) +
-		z * Math.sqrt((f / N) - 
-			      (f * f / N) + 
-			      (z * z / (4 * N * N)))) /
-      (1 + (z * z) / N);
-
-    return (r * N) - e;
-  }
     
     @Override
     public TechnicalInformation getTechnicalInformation() {
