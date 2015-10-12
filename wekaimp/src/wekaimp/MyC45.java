@@ -10,6 +10,7 @@ import weka.classifiers.Sourcable;
 import weka.core.AdditionalMeasureProducer;
 import weka.core.Attribute;
 import weka.core.Capabilities;
+import weka.core.Capabilities.Capability;
 import weka.core.Drawable;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -51,11 +52,14 @@ public class MyC45 extends Classifier
         result.disableAll();
 
         // attributes
-        result.enable(Capabilities.Capability.NOMINAL_ATTRIBUTES);
+        result.enable(Capability.NOMINAL_ATTRIBUTES);
+        result.enable(Capability.NUMERIC_ATTRIBUTES);
+        result.enable(Capability.DATE_ATTRIBUTES);
+        result.enable(Capability.MISSING_VALUES);
 
         // class
-        result.enable(Capabilities.Capability.NOMINAL_CLASS);
-        result.enable(Capabilities.Capability.MISSING_CLASS_VALUES);
+        result.enable(Capability.NOMINAL_CLASS);
+        result.enable(Capability.MISSING_CLASS_VALUES);
 
         // instances
         result.setMinimumNumberInstances(0);
@@ -72,7 +76,6 @@ public class MyC45 extends Classifier
         data = new Instances(data);
         data.deleteWithMissingClass();
 
-        m_data = data;
         makeTree(data);
         prune();
     }
@@ -91,6 +94,7 @@ public class MyC45 extends Classifier
     }
     
     public void makeTree(Instances data){
+        m_data = new Instances(data);
         if (data.numInstances() == 0) {
             classAttribute = null;
             classValue = Instance.missingValue();
@@ -98,11 +102,10 @@ public class MyC45 extends Classifier
             return;
         }
         double GRs[] = new double[data.numAttributes()];
-        for (int i=0; i<data.numAttributes(); i++){
+        for (int i=0; i<data.numAttributes()-1; i++){
             GRs[i] = calculateGainRatio(data, data.attribute(i));
         }
-        classAttribute = data.attribute(Utils.maxIndex(GRs));
-        System.out.println(classAttribute.toString());
+        attribute = data.attribute(Utils.maxIndex(GRs));
         if(attribute.index() == 0) {
             attribute = null;
             distribution = new double[data.numClasses()];
@@ -116,11 +119,21 @@ public class MyC45 extends Classifier
             classAttribute = data.classAttribute();
         }
         else{
-            Instances[] splitData = splitData(data, attribute);
-            successors = new MyC45[attribute.numValues()];
-            for(int i=0; i<attribute.numValues(); i++){
-                successors[i] = new MyC45();
-                successors[i].makeTree(splitData[i]);
+            if(attribute.isNominal()){
+                Instances[] splitData = splitData(data, attribute);
+                successors = new MyC45[attribute.numValues()];
+                for(int i=0; i<attribute.numValues(); i++){
+                    successors[i] = new MyC45();
+                    successors[i].makeTree(splitData[i]);
+                }
+            }
+            else{
+                Instances[] splitData = splitDataNumeric(data, attribute);
+                successors = new MyC45[2];
+                for(int i=0; i<2; i++){
+                    successors[i] = new MyC45();
+                    successors[i].makeTree(splitData[i]);
+                }
             }
         }
     }
@@ -128,8 +141,17 @@ public class MyC45 extends Classifier
     public double calculateGainRatio(Instances data, Attribute att){
         double IG = calculateEntropy(data);
         double IV = 0;
-        Instances[] splitData = splitData(data, att);
-        for(int i = 0; i < att.numValues(); i++) {
+        Instances[] splitData = null;
+        int _n;
+        if(att.isNominal()){
+            splitData = splitData(data, att);
+            _n = att.numValues();
+        }
+        else{
+            splitData = splitDataNumeric(data, att);
+            _n = 2;
+        }
+        for(int i = 0; i < _n; i++) {
             if(splitData[i].numInstances() > 0){
                 IG -= ((double) splitData[i].numInstances() / (double) data.numInstances())
                         * calculateEntropy(splitData[i]);
@@ -169,6 +191,31 @@ public class MyC45 extends Classifier
         for (int i = 0; i < splitData.length; i++) {
           splitData[i].compactify();
         }
+        return splitData;
+    }
+    
+    private Instances[] splitDataNumeric(Instances data, Attribute att){
+        Instances[] splitData = new Instances[2];
+        for (int i = 0; i < 2; i++) {
+          splitData[i] = new Instances(data, data.numInstances());
+        }
+        
+        double threshold = 0;
+        for(int i=0; i<data.numInstances(); i++){
+            threshold += (double)data.instance(i).value(att);
+        }
+        threshold /= (double)data.numInstances();
+        
+        for(int i=0; i<data.numInstances(); i++){
+            Instance insTemp = (Instance) data.instance(i);
+            if((double)data.instance(i).value(att) < threshold)
+                splitData[0].add(insTemp);
+            else
+                splitData[1].add(insTemp);
+        }
+        for(int i=0; i<2; i++)
+            splitData[i].compactify();
+        
         return splitData;
     }
     
@@ -280,6 +327,17 @@ public class MyC45 extends Classifier
         }
         else
             return 1;
+    }
+    
+    private void handleNumericAttributes(){
+        
+    }
+    
+    public String toString() {
+        if ((distribution == null) && (successors == null)) {
+            return "Id3: No model built yet.";
+        }
+        return "Id3\n\n" + toString(0);
     }
     
     private String toString(int level){
