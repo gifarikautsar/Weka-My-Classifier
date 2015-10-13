@@ -13,6 +13,7 @@ import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.trees.Id3;
+import weka.classifiers.trees.J48;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
 import weka.core.Utils;
@@ -91,6 +92,20 @@ public class Wekaimp {
             System.out.println(model.toString());
         } catch (Exception ex) {
             System.out.println("Tidak bisa berhasil membuat model id3");
+        }
+        return model;
+    }
+    
+    public Classifier j48Classifier(){
+        Classifier model = null;
+        try {
+            data.setClassIndex(data.numAttributes()-1);
+            J48 tree = new J48();
+            tree.buildClassifier(data);
+            model = tree;
+            System.out.println(model.toString());
+        } catch (Exception ex) {
+            System.out.println("Tidak bisa berhasil membuat model J48");
         }
         return model;
     }
@@ -253,13 +268,13 @@ public class Wekaimp {
         
         //create model
         System.out.println("Classifier yang akan digunakan:");
-        System.out.println("1. Naive Bayes");
+        System.out.println("1. J48");
         System.out.println("2. Id3");
         System.out.println("3. myID3");
         System.out.println("4. myC45");
         pil = scan.nextInt();
         if(pil == 1){
-            model = w.naiveBayesClassifier();
+            model = w.j48Classifier();
         }
         else if(pil == 2){
             model = w.id3Classifier();

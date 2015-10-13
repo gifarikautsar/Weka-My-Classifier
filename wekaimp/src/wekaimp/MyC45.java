@@ -39,6 +39,7 @@ public class MyC45 extends Classifier
     private Attribute classAttribute;
     
     private Instances m_data;
+    private double m_threshold;
     private float confLevel = 0.25f;
     /**
      * @param args the command line arguments
@@ -106,7 +107,7 @@ public class MyC45 extends Classifier
             GRs[i] = calculateGainRatio(data, data.attribute(i));
         }
         attribute = data.attribute(Utils.maxIndex(GRs));
-        if(attribute.index() == 0) {
+        if(GRs[attribute.index()] == 0) {
             attribute = null;
             distribution = new double[data.numClasses()];
             
@@ -158,7 +159,7 @@ public class MyC45 extends Classifier
                 IV -= calculateEntropy(splitData[i]);
             }
         }
-        return IG/IV; 
+        return IG; 
     }
     
     
@@ -171,9 +172,10 @@ public class MyC45 extends Classifier
         double entropy = 0;
         double numData = (double) data.numInstances();
         for(int i=0; i<data.numClasses(); i++){
-            entropy -= (countClass[i] / numData) * (Utils.log2(countClass[i] / numData));
+            if(countClass[i] > 0){
+                entropy -= (countClass[i] / numData) * (Utils.log2(countClass[i] / numData));
+            }
         }
-        
         return entropy;
     }
     
@@ -205,10 +207,11 @@ public class MyC45 extends Classifier
             threshold += (double)data.instance(i).value(att);
         }
         threshold /= (double)data.numInstances();
+        m_threshold = threshold;
         
         for(int i=0; i<data.numInstances(); i++){
             Instance insTemp = (Instance) data.instance(i);
-            if((double)data.instance(i).value(att) < threshold)
+            if((double)data.instance(i).value(att) <= threshold)
                 splitData[0].add(insTemp);
             else
                 splitData[1].add(insTemp);
@@ -225,19 +228,24 @@ public class MyC45 extends Classifier
         double errorsTree;
         int indexOfLargestBranch;
         MyC45 largestBranch;
-        int i;
 
         if (successors != null){
 
             // Prune all subtrees.
-            for (i=0;i<attribute.numValues();i++)
-                successors[i].prune();
+            if(attribute.isNominal()){
+                for (int i=0;i<attribute.numValues();i++)
+                    successors[i].prune();
+            }
+            else{
+                for (int i=0;i<2;i++)
+                    successors[i].prune();
+            }
 
             // Compute error for largest branch
             indexOfLargestBranch = indexOfMaxBranch();
+//            indexOfLargestBranch = 0;
             
-            errorsLargestBranch = successors[indexOfLargestBranch].
-                getEstimatedErrorsForBranch();
+            errorsLargestBranch = successors[indexOfLargestBranch].getEstimatedErrorsForBranch();
 
             // Compute error if this Tree would be leaf
             errorsLeaf = getEstimatedErrorsForDistribution(new Distribution(m_data));
@@ -314,11 +322,11 @@ public class MyC45 extends Classifier
             }
         }
         
-        return iMax;
+        return 0;
     }
     
     private int numOfBranch(){
-        if(successors.length > 0){
+        if(successors != null){
             int num = 1;
             for(int i=0; i<successors.length; i++){
                 num += successors[i].numOfBranch();
@@ -329,15 +337,11 @@ public class MyC45 extends Classifier
             return 1;
     }
     
-    private void handleNumericAttributes(){
-        
-    }
-    
     public String toString() {
         if ((distribution == null) && (successors == null)) {
-            return "Id3: No model built yet.";
+            return "C45: No model built yet.";
         }
-        return "Id3\n\n" + toString(0);
+        return "C45\n\n" + toString(0);
     }
     
     private String toString(int level){
@@ -352,13 +356,28 @@ public class MyC45 extends Classifier
             }
         }
         else{
-            for(int i=0; i<attribute.numValues(); i++){
-                printTree.append("\n");
-                for(int j=0; j<level; j++){
-                    printTree.append("|  ");
+            if(attribute.isNominal()){
+                for(int i=0; i<attribute.numValues(); i++){
+                    printTree.append("\n");
+                    for(int j=0; j<level; j++){
+                        printTree.append("|  ");
+                    }
+                    printTree.append(attribute.name() + " = " + attribute.value(i));
+                    printTree.append(successors[i].toString(level + 1));
                 }
-                printTree.append(attribute.name() + " = " + attribute.value(i));
-                printTree.append(successors[i].toString(level + 1));
+            }
+            else{
+                for(int i=0; i<2; i++){
+                    printTree.append("\n");
+                    for(int j=0; j<level; j++){
+                        printTree.append("|  ");
+                    }
+                    if(i==0)
+                        printTree.append(attribute.name() + " <= " + m_threshold);
+                    else
+                        printTree.append(attribute.name() + " > " + m_threshold);
+                    printTree.append(successors[i].toString(level + 1));
+                }
             }
         }
         return printTree.toString();
